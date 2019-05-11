@@ -1,58 +1,144 @@
-class Node:
+import os
+from collections import deque
+
+
+class Node(object):
+    """
+    Implements a generic data structure node
+    """
     def __init__(self, data):
         self.data = data
+
+
+class SimpleLinkedListNode(Node):
+    """
+    Implements a simple linked list node
+    """
+    def __init__(self, data):
+        super(SimpleLinkedListNode, self).__init__(data)
         self.next = None
 
 
-class CircularLinkedList:
-    def __init__(self):
-        pass
+class DoubleLinkedListNode(Node):
+    """
+    Implements a double linked list node
+    """
+    def __init__(self, data):
+        super(DoubleLinkedListNode, self).__init__(data)
+        self.next = None
+        self.prev = None
 
+
+class TreeNode(Node):
+    """
+    Implements a generic tree node
+    """
+    def __init__(self, data):
+        super(TreeNode, self).__init__(data)
+        self.parent = None
+        self.children = []
+
+    def add_children(self, values):
+        for v in values:
+            child = TreeNode(v)
+            child.parent = self
+            self.children.append(child)
+
+
+class SimpleCircularLinkedList(object):
+    """
+    Implements an generic simple circular linked list
+    """
     def __contains__(self, data):
         """
-        implements the in operator
+        implements the `in` operator
         """
         if self.head is not None:
+            if self.head.data == data:
+                return True
+
             current = self.head
-            while True:
+            while current.next != self.head:
                 if current.data == data:
                     return True  # value found in list
 
                 current = current.next
-                if current == self.head:
-                    break
 
         return False
 
     def __iter__(self):
         return self
 
-    def next(self):
+    def get(self):
+        # generator with lazy retrieval of the list elements
         current = self.head
         while current.next != self.head:
             yield current.data
+            current = current.next
 
 
-class CircularLinkedListNoSentinel(CircularLinkedList):
+class SimpleCircularLinkedListNoSentinel(SimpleCircularLinkedList):
+    """"
+    Implements a circular simple linked list with no sentinel node (i.e. its first node is also its head)
+    """
     def __init__(self):
-        self.head = None
+        self.head = None  # new list is always created empty
 
-    def push(self, data):
-        n = Node(data)
-        n.next = self.head
+    def insert_before(self, data, node):
+        """
+        Insert a node before a given node
+        :param data: Inserted node data
+        :param node: Node before which to insert the new node
+        """
+        # in case list is empty, do nothing
 
-        current = self.head
         if self.head is not None:
-            while current.next != self.head:
-                current = current.next
-            current.next = n
-        else:
-            n.next = n
-            self.head = n
+            new_node = SimpleLinkedListNode(data)  # create the new node using given data
+            new_node.next = node  # new node points to node it's inserted before
 
-    def reverse(self):
+            # seek the node after the node to be inserted before
+            current = self.head
+            while current.next != node:
+                current = current.next
+            current.next = new_node  # after node points to the newly created node
+
+    def insert_after(self, data, node):
+        """
+        Insert a node after a given node
+        :param data: Inserted node data
+        :param node: Node after which to insert the new node
+        """
+        # in case list is empty, do nothing
+
+        if self.head is not None:
+            new_node = SimpleLinkedListNode(data)  # create the new node using given data
+            new_node.next = node.next  # new node points to node's next
+            node.next = new_node  # existing node points to the newly created node
+
+    def append(self, data):
+        """
+        Adds a new element at the end of the list (i.e. before the head, if any)
+        """
+        n = SimpleLinkedListNode(data)  # create the new node with the given data
+
         if self.head is not None:
             current = self.head
+            while current.next != self.head:
+                current = current.next
+            current.next = n  # the last node in the list will point to the newly added node
+        else:
+            self.head = n  # list was empty, new node becomes the head
+
+        n.next = self.head  # newly added node always points to the head
+
+    def reverse(self):
+        """
+        Reverse a simple circular linked list, by changing the direction of the node links
+        """
+        if self.head is not None:
+            current = self.head
+
+            # seek the node before the head
             while current.next != self.head:
                 current = current.next
 
@@ -64,12 +150,13 @@ class CircularLinkedListNoSentinel(CircularLinkedList):
                 current.next = prev
                 prev = current
                 current = _next
-                if current == self.head:
+                if current == self.head:  # head is reached, list is fully reversed
                     break
 
-    def delete_the_other_nth_element(self, n):
-        """"
+    def delete_each_nth_element(self, step):
+        """
         Deletes each nth element from the list
+        :param step: Indicates the step of deletion
         """
         if self.head is not None:
             current = self.head
@@ -77,8 +164,8 @@ class CircularLinkedListNoSentinel(CircularLinkedList):
             while True:
                 _next = current
 
-                # iterate n elements, if header is encountered abort
-                for _ in range(n):
+                # iterate `step` elements, if header is encountered abort
+                for _ in range(step):
                     _next = _next.next
                     if _next == self.head:
                         return
@@ -100,19 +187,41 @@ class CircularLinkedListNoSentinel(CircularLinkedList):
                     print "head({})".format(current.data)
                     break
 
+    @staticmethod
+    def test():
+        c3 = SimpleCircularLinkedListNoSentinel()
+        for i in range(10):
+            c3.append(i)
+        c3.list()
+        print '\nReversing no-sentinel list...'
+        c3.reverse()
+        c3.list()
 
-class CircularLinkedListWithSentinel(CircularLinkedList):
+        print '\nDeleting the other 2nd element...',
+        c3.delete_each_nth_element(2)
+        c3.list()
+
+        items_generator = c3.get()
+        try:
+            print 'Printing items in a lazy mode: ',
+            while True:
+                print next(items_generator),
+        except StopIteration:
+            pass
+
+
+class SimpleCircularLinkedListWithSentinel(SimpleCircularLinkedList):
     def __init__(self):
-        self.head = Node(None)      # this is the sentinel node
+        self.head = SimpleLinkedListNode(None)  # this is the sentinel node
         self.head.next = self.head
 
-    def push_front(self, data):
-        n = Node(data)
+    def add_in_front(self, data):
+        n = SimpleLinkedListNode(data)
         n.next = self.head.next
         self.head.next = n
 
-    def push_end(self, data):
-        n = Node(data)
+    def add_to_end(self, data):
+        n = SimpleLinkedListNode(data)
         n.next = self.head
 
         '''position to the last element before head(i.e. tail)'''
@@ -133,25 +242,58 @@ class CircularLinkedListWithSentinel(CircularLinkedList):
                 print "head({})".format(current.data)
                 break
 
+    @staticmethod
+    def test():
+        c1 = SimpleCircularLinkedListWithSentinel()
+        for _ in xrange(10):
+            c1.add_in_front(_)
+        c1.list()
 
-c1 = CircularLinkedListWithSentinel()
-for i in range(10):
-    c1.push_front(i)
-c1.list()
+        c2 = SimpleCircularLinkedListWithSentinel()
+        for _ in xrange(10):
+            c2.add_to_end(_)
+        c2.list()
 
-c2 = CircularLinkedListWithSentinel()
-for i in range(10):
-    c2.push_end(i)
-c2.list()
 
-c3 = CircularLinkedListNoSentinel()
-for i in range(10):
-    c3.push(i)
-c3.list()
-print '\nReversing no-sentinel list...'
-c3.reverse()
-c3.list()
+class Tree(object):
+    """
+    Implements a generic tree structure
+    """
+    def __init__(self, data):
+        self.root = TreeNode(data)
 
-print '\nDeleting the other element...'
-c3.delete_the_other_nth_element(1)
-c3.list()
+    def traverse_dfs(self, root):
+        if root is None:
+            return
+
+        print root.data,
+
+        for child in root.children:
+            self.traverse_dfs(root=child)
+
+    def traverse_bfs(self, root):
+        queue = deque()
+        queue.append(root)
+
+        while queue:
+            curr = queue.popleft()
+            print curr.data,
+            for child in curr.children:
+                queue.append(child)
+
+    @staticmethod
+    def test():
+        tree = Tree(1)
+        tree.root.add_children([2, 3])
+        tree.root.children[0].add_children([4, 5])
+        tree.root.children[1].add_children([6])
+        print 'Traverse DFS:',
+        tree.traverse_dfs(tree.root)
+
+        print os.linesep + 'Traverse BFS:',
+        tree.traverse_bfs(tree.root)
+
+
+SimpleCircularLinkedListWithSentinel.test()
+SimpleCircularLinkedListNoSentinel.test()
+Tree.test()
